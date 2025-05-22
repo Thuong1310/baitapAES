@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AES Encrypt/Decrypt</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #0d1b2a, #1b263b);
+      color: #e0f7fa;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 40px 15px;
+    }
+    .container {
+      background: #142d4c;
+      max-width: 700px;
+      width: 100%;
+      border-radius: 12px;
+      padding: 30px 40px 40px;
+      box-shadow: 0 12px 30px rgba(0, 255, 210, 0.3);
+      user-select: none;
+    }
+    h1 {
+      margin: 0 0 25px 0;
+      font-weight: 600;
+      font-size: 2.2rem;
+      text-align: center;
+      color: #00ffe7;
+      text-shadow: 0 0 8px #00ffe7aa;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #81d4fa;
+    }
+    input[type="text"], select, input[type="file"], textarea {
+      width: 100%;
+      padding: 12px 15px;
+      border-radius: 8px;
+      border: none;
+      font-size: 1rem;
+      background: #0b1a2f;
+      color: #b2ebf2;
+      box-shadow: inset 0 0 8px #00ffe7aa;
+      transition: box-shadow 0.3s ease, background-color 0.3s ease;
+      font-family: 'Poppins', sans-serif;
+    }
+    input[type="text"]:focus, select:focus, input[type="file"]:focus, textarea:focus {
+      outline: none;
+      box-shadow: 0 0 12px #00ffe7;
+      background-color: #082034;
+    }
+    textarea {
+      min-height: 140px;
+      resize: vertical;
+    }
+    .btn-row {
+      margin-top: 20px;
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+    }
+    button {
+      background: #00ffe7;
+      color: #0b1a2f;
+      border: none;
+      border-radius: 30px;
+      font-weight: 600;
+      font-size: 1.1rem;
+      padding: 14px 32px;
+      cursor: pointer;
+      box-shadow: 0 6px 15px rgba(0, 255, 231, 0.7);
+      transition: background 0.3s ease, box-shadow 0.3s ease;
+      user-select: none;
+    }
+    button:disabled {
+      background: #16697a;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    button:hover:not(:disabled) {
+      background: #00cca6;
+      box-shadow: 0 8px 20px rgba(0, 204, 166, 0.9);
+    }
+    .textareas {
+      margin-top: 25px;
+      display: flex;
+      gap: 20px;
+    }
+    .textareas > div {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .textareas label {
+      margin-bottom: 6px;
+      color: #80deea;
+    }
+    @media (max-width: 640px) {
+      .container {
+        padding: 25px 20px 30px;
+      }
+      .textareas {
+        flex-direction: column;
+      }
+      .textareas > div {
+        margin-bottom: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container" role="main" aria-label="AES file encrypt and decrypt tool">
+    <h1>🔐 AES Encrypt / Decrypt</h1>
+
+    <label for="key">Nhập mã khóa (độ dài tự do)</label>
+    <input type="text" id="key" placeholder="Nhập khóa mã hóa" spellcheck="false" autocomplete="off" aria-required="true" />
+
+    <label for="mode">Chọn chế độ</label>
+    <select id="mode" aria-label="Chọn chế độ mã hóa hoặc giải mã">
+      <option value="encrypt" selected>Mã hóa</option>
+      <option value="decrypt">Giải mã</option>
+    </select>
+
+    <label for="fileInput">Chọn file (ảnh, Word, Excel,...)</label>
+    <input type="file" id="fileInput" aria-describedby="fileHelp" />
+
+    <div class="btn-row">
+      <button id="processBtn">Thực hiện</button>
+      <button id="downloadBtn" disabled>Tải file kết quả</button>
+    </div>
+
+    <div class="textareas" aria-live="polite" aria-atomic="true">
+      <div>
+        <label for="originalText">Nội dung gốc (Base64)</label>
+        <textarea id="originalText" readonly spellcheck="false" aria-readonly="true"></textarea>
+      </div>
+      <div>
+        <label for="resultText">Kết quả</label>
+        <textarea id="resultText" readonly spellcheck="false" aria-readonly="true"></textarea>
+      </div>
+    </div>
+  </div>
+
+<script>
+  function arrayBufferToWordArray(ab) {
+    const i8a = new Uint8Array(ab);
+    const words = [];
+    for (let i = 0; i < i8a.length; i += 4) {
+      words.push(
+        (i8a[i] << 24) |
+        (i8a[i + 1] << 16) |
+        (i8a[i + 2] << 8) |
+        (i8a[i + 3])
+      );
+    }
+    return CryptoJS.lib.WordArray.create(words, i8a.length);
+  }
+
+  function wordArrayToUint8Array(wordArray) {
+    const len = wordArray.sigBytes;
+    const words = wordArray.words;
+    const result = new Uint8Array(len);
+    let offset = 0;
+    for (let i = 0; i < words.length; i++) {
+      let word = words[i];
+      for (let j = 3; j >= 0; j--) {
+        if (offset + j < len) {
+          result[offset + j] = word & 0xff;
+        }
+        word >>>= 8;
+      }
+      offset += 4;
+    }
+    return result;
+  }
+
+  function uint8ArrayToBase64(u8Arr) {
+    let CHUNK_SIZE = 0x8000;
+    let index = 0;
+    let result = '';
+    while (index < u8Arr.length) {
+      let slice = u8Arr.subarray(index, Math.min(index + CHUNK_SIZE, u8Arr.length));
+      result += String.fromCharCode.apply(null, slice);
+      index += CHUNK_SIZE;
+    }
+    return btoa(result);
+  }
+
+  function base64ToUint8Array(base64) {
+    let binary_string = atob(base64);
+    let len = binary_string.length;
+    let bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binary_string.charCodeAt(i);
+    }
+    return bytes;
+  }
+
+  function deriveKeyAndIV(password) {
+    const hash = CryptoJS.SHA256(password);
+    const key = hash;
+    const iv = CryptoJS.lib.WordArray.create(hash.words.slice(0, 4));
+    return { key, iv };
+  }
+
+  const keyInput = document.getElementById('key');
+  const modeSelect = document.getElementById('mode');
+  const fileInput = document.getElementById('fileInput');
+  const processBtn = document.getElementById('processBtn');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const originalTextArea = document.getElementById('originalText');
+  const resultTextArea = document.getElementById('resultText');
+
+  let resultData = null;
+  let currentFileName = '';
+
+  processBtn.addEventListener('click', () => {
+    const keyInputStr = keyInput.value.trim();
+    if (keyInputStr.length === 0) {
+      alert('Vui lòng nhập mã khóa.');
+      keyInput.focus();
+      return;
+    }
+
+    const mode = modeSelect.value;
+    const file = fileInput.files[0];
+    if (!file) {
+      alert('Vui lòng chọn file.');
+      fileInput.focus();
+      return;
+    }
+
+    currentFileName = file.name;
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      try {
+        const arrayBuffer = e.target.result;
+        const wordArray = arrayBufferToWordArray(arrayBuffer);
+        const base64Str = CryptoJS.enc.Base64.stringify(wordArray);
+
+        if (mode === 'encrypt') {
+          originalTextArea.value = base64Str;
+          const { key, iv } = deriveKeyAndIV(keyInputStr);
+          const encrypted = CryptoJS.AES.encrypt(base64Str, key, {
+            iv: iv,
+            mode: CryptoJS.mode.CBC,
+            padding: CryptoJS.pad.Pkcs7
+          });
+          const encryptedStr = encrypted.toString();
+          resultTextArea.value = encryptedStr;
+          resultData = new TextEncoder().encode(encryptedStr);
+          downloadBtn.disabled = false;
+        } else {
+          const encryptedStr = new TextDecoder().decode(wordArrayToUint8Array(wordArray));
+          originalTextArea.value = encryptedStr;
+          const { key, iv } = deriveKeyAndIV(keyInputStr);
+          const decrypted = CryptoJS.AES.decrypt(encryptedStr, key, {
+            iv: iv,
+            mode: CryptoJS.mode.CBC,
+            padding: CryptoJS.pad.Pkcs7
+          });
+          const decryptedStr = decrypted.toString(CryptoJS.enc.Utf8);
+          if (!decryptedStr) throw new Error('Mã khóa hoặc dữ liệu không đúng.');
+          resultTextArea.value = decryptedStr;
+          const decodedData = base64ToUint8Array(decryptedStr);
+          resultData = decodedData;
+          downloadBtn.disabled = false;
+        }
+      } catch (ex) {
+        alert('Lỗi khi xử lý: ' + ex.message);
+        downloadBtn.disabled = true;
+      }
+    };
+    reader.onerror = () => {
+      alert('Lỗi khi đọc file.');
+      downloadBtn.disabled = true;
+    };
+    reader.readAsArrayBuffer(file);
+  });
+
+  downloadBtn.addEventListener('click', () => {
+    if (!resultData) return;
+    const blob = new Blob([resultData]);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const suffix = modeSelect.value === 'encrypt' ? '.enc' : '.dec';
+    a.download = currentFileName + suffix;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+  });
+</script>
+</body>
+</html>
