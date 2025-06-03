@@ -1,4 +1,4 @@
-<h1><b>Giới thiệu</b></h1>h1><br>
+<h1><b>Giới thiệu</b></h1><br>
 Đây là một ứng dụng web đơn giản cho phép người dùng mã hóa và giải mã file dữ liệu (ảnh, Word, Excel, PDF,...) bằng thuật toán AES (Advanced Encryption Standard). Ứng dụng hỗ trợ mã hóa bảo mật bằng mã khóa tùy chọn của người dùng, đồng thời cung cấp giao diện hiện đại, dễ sử dụng.<br>
 <b>Chức năng chính:</b><br>
 • Mã hóa file với thuật toán AES.<br>
